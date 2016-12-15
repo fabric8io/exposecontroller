@@ -5,5 +5,6 @@ _dist/
 golib
 release
 out/
+build
 _gopath/
 .DS_Store

@@ -1,34 +1,26 @@
 #!/usr/bin/groovy
-node{
+@Library('github.com/rawlingsj/fabric8-pipeline-library@master')
+def dummy
+goNode{
+  dockerNode{
+    def v = goRelease{
+      githubOrganisation = 'fabric8io'
+      dockerOrganisation = 'fabric8'
+      project = 'exposecontroller'
+    }
 
-  git 'https://github.com/fabric8io/exposecontroller.git'
+    stage ('Update downstream dependencies') {
+      updateDownstreamDependencies(v)
+    }
+  }
+}
 
-  kubernetes.pod('buildpod').withImage('fabric8/go-builder')
-  .withEnvVar('GOPATH','/home/jenkins/workspace/workspace/go')
-  .withPrivileged(true).inside {
-
-    stage 'build binary'
-    
-    sh """
-    mkdir -p ../go/bin;
-    mkdir -p ../go/src/github.com/fabric8io/exposecontroller; 
-    cp -R ../${env.JOB_NAME}/. ../go/src/github.com/fabric8io/exposecontroller/; 
-    cd ../go/src/github.com/fabric8io/exposecontroller; make
-    """
-
-    sh "cp -R ../go/src/github.com/fabric8io/exposecontroller/out ."
-
-    def imageName = 'exposecontroller'
-    def tag = 'latest'
-
-    stage 'build image'
-    kubernetes.image().withName(imageName).build().fromPath(".")
-
-    stage 'tag'
-    kubernetes.image().withName(imageName).tag().inRepository('docker.io/fabric8/'+imageName).force().withTag(tag)
-
-    stage 'push'
-    kubernetes.image().withName('docker.io/fabric8/'+imageName).push().withTag(tag).toRegistry()
-
+def updateDownstreamDependencies(v) {
+  pushPomPropertyChangePR {
+    propertyName = 'exposecontroller.version'
+    projects = [
+            'fabric8io/fabric8-devops'
+    ]
+    version = v
   }
 }
