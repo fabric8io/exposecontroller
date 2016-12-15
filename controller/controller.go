@@ -2,8 +2,8 @@ package controller
 
 import (
 	"encoding/json"
-	"net/url"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -11,14 +11,14 @@ import (
 	"github.com/pkg/errors"
 
 	"k8s.io/kubernetes/pkg/api"
+	uapi "k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/client/cache"
 	"k8s.io/kubernetes/pkg/client/record"
 	"k8s.io/kubernetes/pkg/client/restclient"
+	client "k8s.io/kubernetes/pkg/client/unversioned"
 	"k8s.io/kubernetes/pkg/controller/framework"
 	"k8s.io/kubernetes/pkg/runtime"
 	"k8s.io/kubernetes/pkg/watch"
-	client "k8s.io/kubernetes/pkg/client/unversioned"
-	uapi "k8s.io/kubernetes/pkg/api/unversioned"
 
 	"github.com/fabric8io/exposecontroller/exposestrategy"
 
@@ -28,9 +28,9 @@ import (
 )
 
 const (
-	ExposeConfigURLKeyAnnotation = "expose.config.fabric8.io/url-key"
-	ExposeConfigHostKeyAnnotation = "expose.config.fabric8.io/host-key"
-	ExposeConfigApiServerKeyAnnotation = "expose.config.fabric8.io/apiserver-key"
+	ExposeConfigURLKeyAnnotation               = "expose.config.fabric8.io/url-key"
+	ExposeConfigHostKeyAnnotation              = "expose.config.fabric8.io/host-key"
+	ExposeConfigApiServerKeyAnnotation         = "expose.config.fabric8.io/apiserver-key"
 	ExposeConfigOAuthAuthorizeURLKeyAnnotation = "expose.config.fabric8.io/oauth-authorize-url-key"
 )
 
@@ -83,22 +83,21 @@ func NewController(
 		ocfg.NegotiatedSerializer = nil
 		oc, _ = oclient.New(&ocfg)
 
-
 		authorizeURL = findOAuthAuthorizeURL()
 		if len(authorizeURL) == 0 {
 			authorizeURL = config.ApiServer
 			if len(authorizeURL) > 0 {
-				if (!strings.HasPrefix(authorizeURL, "http:") && !strings.HasPrefix(authorizeURL, "https:")) {
+				if !strings.HasPrefix(authorizeURL, "http:") && !strings.HasPrefix(authorizeURL, "https:") {
 					authorizeURL = "https://" + authorizeURL
 				}
 				authPath := config.AuthorizePath
 				if len(authPath) == 0 {
 					authPath = "/oauth/authorize"
 				}
-				if (!strings.HasPrefix(authPath, "/")) {
+				if !strings.HasPrefix(authPath, "/") {
 					authPath = "/" + authPath
 				}
-				authorizeURL = strings.TrimSuffix(authorizeURL, "/") + authPath;
+				authorizeURL = strings.TrimSuffix(authorizeURL, "/") + authPath
 			}
 		}
 		glog.Infof("Using OAuth Authorize URL: %s", authorizeURL)
@@ -158,7 +157,6 @@ func NewController(
 
 	return &c, nil
 }
-
 
 func isOpenShift(c *client.Client) bool {
 	res, err := c.Get().AbsPath("").DoRaw()
@@ -273,9 +271,9 @@ func findOAuthAuthorizeURL() string {
 }
 
 type OAuthServer struct {
-	Issuer string 			 `json:"issuer,omitempty"`
-	AuthorizationEndpoint string     `json:"authorization_endpoint,omitempty"`
-	TokenEndpoint string             `json:"token_endpoint,omitempty"`
+	Issuer                string `json:"issuer,omitempty"`
+	AuthorizationEndpoint string `json:"authorization_endpoint,omitempty"`
+	TokenEndpoint         string `json:"token_endpoint,omitempty"`
 }
 
 func updateServiceOAuthClient(oc *oclient.Client, svc *api.Service) {
@@ -311,7 +309,6 @@ func updateServiceOAuthClient(oc *oclient.Client, svc *api.Service) {
 		}
 	}
 }
-
 
 // Run starts the controller.
 func (c *Controller) Run() {
