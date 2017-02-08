@@ -72,6 +72,11 @@ func (s *IngressStrategy) Add(svc *api.Service) error {
 	}
 	ingress.Labels["provider"] = "fabric8"
 
+    if ingress.Annotations == nil {
+        ingress.Annotations = map[string]string{}
+    }
+    ingress.Annotations["kubernetes.io/ingress.class"] = "nginx"
+
 	ingress.Spec.Rules = []extensions.IngressRule{}
 	for _, port := range svc.Spec.Ports {
 		rule := extensions.IngressRule{
