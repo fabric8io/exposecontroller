@@ -10,12 +10,11 @@ import (
 
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/v1"
-	client "k8s.io/kubernetes/pkg/client/unversioned"
 	"k8s.io/kubernetes/pkg/runtime"
 )
 
 type NodePortStrategy struct {
-	client  *client.Client
+	client  KubeClient
 	encoder runtime.Encoder
 
 	nodeIP string
@@ -25,7 +24,7 @@ var _ ExposeStrategy = &NodePortStrategy{}
 
 const ExternalIPLabel = "fabric8.io/externalIP"
 
-func NewNodePortStrategy(client *client.Client, encoder runtime.Encoder) (*NodePortStrategy, error) {
+func NewNodePortStrategy(client KubeClient, encoder runtime.Encoder) (*NodePortStrategy, error) {
 	l, err := client.Nodes().List(api.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list nodes")

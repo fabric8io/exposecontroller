@@ -8,7 +8,6 @@ import (
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/client/restclient"
-	client "k8s.io/kubernetes/pkg/client/unversioned"
 	"k8s.io/kubernetes/pkg/runtime"
 )
 
@@ -23,7 +22,7 @@ const (
 	stackpointIPEnvVar = "BALANCER_IP"
 )
 
-func NewAutoStrategy(exposer, domain string, client *client.Client, restClientConfig *restclient.Config, encoder runtime.Encoder) (ExposeStrategy, error) {
+func NewAutoStrategy(exposer, domain string, client KubeClient, restClientConfig *restclient.Config, encoder runtime.Encoder) (ExposeStrategy, error) {
 
 	exposer, err := getAutoDefaultExposeRule(client)
 	if err != nil {
@@ -44,7 +43,7 @@ func NewAutoStrategy(exposer, domain string, client *client.Client, restClientCo
 	return New(exposer, domain, client, restClientConfig, encoder)
 }
 
-func getAutoDefaultExposeRule(c *client.Client) (string, error) {
+func getAutoDefaultExposeRule(c KubeClient) (string, error) {
 
 	nodes, err := c.Nodes().List(api.ListOptions{})
 	if err != nil {
@@ -67,7 +66,7 @@ func getAutoDefaultExposeRule(c *client.Client) (string, error) {
 	return ingress, nil
 }
 
-func getAutoDefaultDomain(c *client.Client) (string, error) {
+func getAutoDefaultDomain(c KubeClient) (string, error) {
 	nodes, err := c.Nodes().List(api.ListOptions{})
 	if err != nil {
 		return "", errors.Wrap(err, "failed to find any nodes")

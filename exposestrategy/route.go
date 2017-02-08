@@ -13,12 +13,11 @@ import (
 	"k8s.io/kubernetes/pkg/api"
 	apierrors "k8s.io/kubernetes/pkg/api/errors"
 	"k8s.io/kubernetes/pkg/api/v1"
-	client "k8s.io/kubernetes/pkg/client/unversioned"
 	"k8s.io/kubernetes/pkg/runtime"
 )
 
 type RouteStrategy struct {
-	client  *client.Client
+	client  KubeClient
 	oclient *oclient.Client
 	encoder runtime.Encoder
 
@@ -27,7 +26,7 @@ type RouteStrategy struct {
 
 var _ ExposeStrategy = &RouteStrategy{}
 
-func NewRouteStrategy(client *client.Client, oclient *oclient.Client, encoder runtime.Encoder, domain string) (*RouteStrategy, error) {
+func NewRouteStrategy(client KubeClient, oclient *oclient.Client, encoder runtime.Encoder, domain string) (*RouteStrategy, error) {
 	t, err := typeOfMaster(client)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create new route strategy")

@@ -10,13 +10,12 @@ import (
 	apierrors "k8s.io/kubernetes/pkg/api/errors"
 	"k8s.io/kubernetes/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/apis/extensions"
-	client "k8s.io/kubernetes/pkg/client/unversioned"
 	"k8s.io/kubernetes/pkg/runtime"
 	"k8s.io/kubernetes/pkg/util/intstr"
 )
 
 type IngressStrategy struct {
-	client  *client.Client
+	client  KubeClient
 	encoder runtime.Encoder
 
 	domain string
@@ -24,7 +23,7 @@ type IngressStrategy struct {
 
 var _ ExposeStrategy = &IngressStrategy{}
 
-func NewIngressStrategy(client *client.Client, encoder runtime.Encoder, domain string) (*IngressStrategy, error) {
+func NewIngressStrategy(client KubeClient, encoder runtime.Encoder, domain string) (*IngressStrategy, error) {
 	t, err := typeOfMaster(client)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create new ingress strategy")

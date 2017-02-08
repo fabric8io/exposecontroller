@@ -7,18 +7,17 @@ import (
 
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/v1"
-	client "k8s.io/kubernetes/pkg/client/unversioned"
 	"k8s.io/kubernetes/pkg/runtime"
 )
 
 type LoadBalancerStrategy struct {
-	client  *client.Client
+	client  KubeClient
 	encoder runtime.Encoder
 }
 
 var _ ExposeStrategy = &LoadBalancerStrategy{}
 
-func NewLoadBalancerStrategy(client *client.Client, encoder runtime.Encoder) (*LoadBalancerStrategy, error) {
+func NewLoadBalancerStrategy(client KubeClient, encoder runtime.Encoder) (*LoadBalancerStrategy, error) {
 	return &LoadBalancerStrategy{
 		client:  client,
 		encoder: encoder,

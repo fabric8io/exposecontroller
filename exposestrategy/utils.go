@@ -9,7 +9,6 @@ import (
 
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/unversioned"
-	client "k8s.io/kubernetes/pkg/client/unversioned"
 	"k8s.io/kubernetes/pkg/runtime"
 	"k8s.io/kubernetes/pkg/util/strategicpatch"
 )
@@ -81,7 +80,7 @@ const (
 	kubernetes masterType = "Kubernetes"
 )
 
-func typeOfMaster(c *client.Client) (masterType, error) {
+func typeOfMaster(c KubeClient) (masterType, error) {
 	res, err := c.Get().AbsPath("").DoRaw()
 	if err != nil {
 		errors.Wrap(err, "could not discover the type of your installation")

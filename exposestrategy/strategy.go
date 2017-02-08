@@ -8,7 +8,6 @@ import (
 	oclient "github.com/openshift/origin/pkg/client"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/client/restclient"
-	client "k8s.io/kubernetes/pkg/client/unversioned"
 	"k8s.io/kubernetes/pkg/runtime"
 )
 
@@ -27,7 +26,7 @@ var (
 	ExposeAnnotationKey = "fabric8.io/exposeUrl"
 )
 
-func New(exposer, domain string, client *client.Client, restClientConfig *restclient.Config, encoder runtime.Encoder) (ExposeStrategy, error) {
+func New(exposer, domain string, client KubeClient, restClientConfig *restclient.Config, encoder runtime.Encoder) (ExposeStrategy, error) {
 	switch strings.ToLower(exposer) {
 	case "loadbalancer":
 		strategy, err := NewLoadBalancerStrategy(client, encoder)
