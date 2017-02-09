@@ -2,11 +2,12 @@ package exposestrategy
 
 import (
     "strings"
-	"net/http"
+    "net/http"
     "io/ioutil"
-	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/client/unversioned/fake"
-	"k8s.io/kubernetes/pkg/client/unversioned/testclient"
+    "k8s.io/kubernetes/pkg/api"
+    "k8s.io/kubernetes/pkg/runtime"
+    "k8s.io/kubernetes/pkg/client/unversioned/fake"
+    "k8s.io/kubernetes/pkg/client/unversioned/testclient"
     "k8s.io/kubernetes/pkg/client/restclient"
     "k8s.io/kubernetes/pkg/client/unversioned"
 )
@@ -16,7 +17,7 @@ type MockKubeClient struct {
     APIClient *testclient.Fake
 }
 
-func NewMockKubeClient() MockKubeClient {
+func NewMockKubeClient(responseObjects ...runtime.Object) MockKubeClient {
     restClient := &fake.RESTClient{
         Client: fake.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
             httpResp := http.Response {
@@ -28,7 +29,7 @@ func NewMockKubeClient() MockKubeClient {
         }),
     }
 
-    fakeClient := testclient.NewSimpleFake()
+    fakeClient := testclient.NewSimpleFake(responseObjects...)
 
     return MockKubeClient{
         RESTClient: restClient,
