@@ -48,6 +48,7 @@ type Config struct {
 	Exposer       string `yaml:"exposer"`
 	ApiServer     string `yaml:"apiserver,omitempty"`
 	AuthorizePath string `yaml:"authorize-path,omitempty"`
+	UrlTemplate   string `yaml:"urltemplate,omitempty"`
 
 	// original is the input from which the config was parsed.
 	original string

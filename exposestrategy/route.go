@@ -23,11 +23,12 @@ type RouteStrategy struct {
 	encoder runtime.Encoder
 
 	domain string
+	urltemplate string
 }
 
 var _ ExposeStrategy = &RouteStrategy{}
 
-func NewRouteStrategy(client *client.Client, oclient *oclient.Client, encoder runtime.Encoder, domain string) (*RouteStrategy, error) {
+func NewRouteStrategy(client *client.Client, oclient *oclient.Client, encoder runtime.Encoder, domain string, urltemplate string) (*RouteStrategy, error) {
 	t, err := typeOfMaster(client)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create new route strategy")
@@ -44,6 +45,13 @@ func NewRouteStrategy(client *client.Client, oclient *oclient.Client, encoder ru
 		glog.Infof("Using domain: %s", domain)
 	}
 
+	var urlformat string
+	urlformat, err = getUrlFormat(urltemplate)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get a url format")
+	}
+	glog.Infof("Using url template [%s] format [%s]", urltemplate, urlformat)
+
 	rapi.AddToScheme(api.Scheme)
 	rapiv1.AddToScheme(api.Scheme)
 
@@ -52,11 +60,12 @@ func NewRouteStrategy(client *client.Client, oclient *oclient.Client, encoder ru
 		oclient: oclient,
 		encoder: encoder,
 		domain:  domain,
+		urltemplate: urlformat,
 	}, nil
 }
 
 func (s *RouteStrategy) Add(svc *api.Service) error {
-	hostName := fmt.Sprintf("%s.%s.%s", svc.Name, svc.Namespace, s.domain)
+	hostName := fmt.Sprintf(s.urltemplate, svc.Name, svc.Namespace, s.domain)
 
 	createRoute := false
 	route, err := s.oclient.Routes(svc.Namespace).Get(svc.Name)

@@ -27,7 +27,7 @@ var (
 	ExposeAnnotationKey = "fabric8.io/exposeUrl"
 )
 
-func New(exposer, domain string, client *client.Client, restClientConfig *restclient.Config, encoder runtime.Encoder) (ExposeStrategy, error) {
+func New(exposer, domain string, urltemplate string, client *client.Client, restClientConfig *restclient.Config, encoder runtime.Encoder) (ExposeStrategy, error) {
 	switch strings.ToLower(exposer) {
 	case "loadbalancer":
 		strategy, err := NewLoadBalancerStrategy(client, encoder)
@@ -42,7 +42,7 @@ func New(exposer, domain string, client *client.Client, restClientConfig *restcl
 		}
 		return strategy, nil
 	case "ingress":
-		strategy, err := NewIngressStrategy(client, encoder, domain)
+		strategy, err := NewIngressStrategy(client, encoder, domain, urltemplate)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create ingress expose strategy")
 		}
@@ -53,13 +53,13 @@ func New(exposer, domain string, client *client.Client, restClientConfig *restcl
 		ocfg.GroupVersion = nil
 		ocfg.NegotiatedSerializer = nil
 		oc, _ := oclient.New(&ocfg)
-		strategy, err := NewRouteStrategy(client, oc, encoder, domain)
+		strategy, err := NewRouteStrategy(client, oc, encoder, domain, urltemplate)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create ingress expose strategy")
 		}
 		return strategy, nil
 	case "":
-		strategy, err := NewAutoStrategy(exposer, domain, client, restClientConfig, encoder)
+		strategy, err := NewAutoStrategy(exposer, domain, urltemplate, client, restClientConfig, encoder)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create auto expose strategy")
 		}

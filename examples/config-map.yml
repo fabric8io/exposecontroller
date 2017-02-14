@@ -1,12 +1,14 @@
 apiVersion: "v1"
 data:
   config.yml: |-
-    domain: 
-    exposer: 
+    domain:
+    exposer:
     # exposer: LoadBalancer
     # exposer: Ingress
     # exposer: Route
     # exposer: NodePort
+    # For ingress or route exposers can set the urltemplate to expose
+    # urltemplate: "{{.Service}}.{{.Namespace}}.{{.Domain}}"
 kind: "ConfigMap"
 metadata:
   labels:
