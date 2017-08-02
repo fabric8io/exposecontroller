@@ -92,6 +92,12 @@ func (s *IngressStrategy) Add(svc *api.Service) error {
 		ingress.Spec.Rules = append(ingress.Spec.Rules, rule)
 	}
 
+	tls := extensions.IngressTLS{
+		Hosts: hostName,
+		SecretName: svc.Name + "-tls",
+	}
+	ingress.Spec.TLS = append(ingress.Spec.TLS, tls)
+
 	if createIngress {
 		_, err := s.client.Ingress(ingress.Namespace).Create(ingress)
 		if err != nil {
