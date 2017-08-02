@@ -72,6 +72,11 @@ func (s *IngressStrategy) Add(svc *api.Service) error {
 	}
 	ingress.Labels["provider"] = "fabric8"
 
+	if ingress.Annotations == nil {
+		ingress.Annotations = map[string]string{}
+	}
+	ingress.Annotations["kubernetes.io/tls-acme"] = "true"
+
 	ingress.Spec.Rules = []extensions.IngressRule{}
 	for _, port := range svc.Spec.Ports {
 		rule := extensions.IngressRule{
@@ -91,6 +96,13 @@ func (s *IngressStrategy) Add(svc *api.Service) error {
 		}
 		ingress.Spec.Rules = append(ingress.Spec.Rules, rule)
 	}
+
+	ingress.Spec.TLS = []extensions.IngressTLS{}
+	tls := extensions.IngressTLS{
+		Hosts: hostName,
+		SecretName: svc.Name + "-tls",
+	}
+	ingress.Spec.TLS = append(ingress.Spec.TLS, tls)
 
 	if createIngress {
 		_, err := s.client.Ingress(ingress.Namespace).Create(ingress)
