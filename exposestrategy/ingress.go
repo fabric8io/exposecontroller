@@ -83,6 +83,7 @@ func (s *IngressStrategy) Add(svc *api.Service) error {
 	var tlsSecretName string
 	if s.tlsAcme {
 		ingress.Annotations["kubernetes.io/tls-acme"] = "true"
+		ingress.Annotations["kubernetes.io/ingress.class"] = "gce"
 		tlsSecretName = "tls-" + svc.Name
 	}
 
