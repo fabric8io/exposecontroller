@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -471,9 +472,14 @@ func updateOtherConfigMaps(c *client.Client, oc *oclient.Client, svc *api.Servic
 // findOAuthAuthorizeURL uses this endpoint: https://github.com/openshift/origin/pull/10845
 func findOAuthAuthorizeURL() string {
 	url := "https://openshift.default.svc/.well-known/oauth-authorization-server"
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+	r, err := client.Get(url)
+
 	// test data
 	//url := "https://gist.githubusercontent.com/jstrachan/dbb2066d89810ef1fa53c1df118ccb41/raw/e60a2d42e11930eef13a4264d35514ffd365c8af/dummy.json"
-	r, err := http.Get(url)
 	if err != nil {
 		glog.Warningf("Failed to load url %s got: %v", url, err)
 		return ""
