@@ -54,12 +54,12 @@ func NewIngressStrategy(client *client.Client, encoder runtime.Encoder, domain s
 	glog.Infof("Using url template [%s] format [%s]", urltemplate, urlformat)
 
 	return &IngressStrategy{
-		client:  client,
-		encoder: encoder,
-		domain:  domain,
-		http:    http,
-		tlsAcme: tlsAcme,
-		urltemplate: urlformat
+		client:      client,
+		encoder:     encoder,
+		domain:      domain,
+		http:        http,
+		tlsAcme:     tlsAcme,
+		urltemplate: urlformat,
 	}, nil
 }
 
@@ -74,7 +74,7 @@ func (s *IngressStrategy) Add(svc *api.Service) error {
 		}
 	}
 
-	hostName := fmt.Sprintf(s.urltemplate,, appName, svc.Namespace, s.domain)
+	hostName := fmt.Sprintf(s.urltemplate, appName, svc.Namespace, s.domain)
 
 	ingress, err := s.client.Ingress(svc.Namespace).Get(appName)
 	createIngress := false
