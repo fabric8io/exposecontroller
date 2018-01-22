@@ -7,6 +7,8 @@ data:
     # exposer: Ingress
     # exposer: Route
     # exposer: NodePort
+    # For ingress; exposers can set the urltemplate to expose
+    # urltemplate: "{{.Service}}.{{.Namespace}}.{{.Domain}}"     
 kind: "ConfigMap"
 metadata:
   labels:

@@ -24,11 +24,12 @@ type IngressStrategy struct {
 	tlsSecretName string
 	http          bool
 	tlsAcme       bool
+	urltemplate   string
 }
 
 var _ ExposeStrategy = &IngressStrategy{}
 
-func NewIngressStrategy(client *client.Client, encoder runtime.Encoder, domain string, http, tlsAcme bool) (*IngressStrategy, error) {
+func NewIngressStrategy(client *client.Client, encoder runtime.Encoder, domain string, http, tlsAcme bool, urltemplate string) (*IngressStrategy, error) {
 	t, err := typeOfMaster(client)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create new ingress strategy")
@@ -45,12 +46,20 @@ func NewIngressStrategy(client *client.Client, encoder runtime.Encoder, domain s
 		glog.Infof("Using domain: %s", domain)
 	}
 
+	var urlformat string
+	urlformat, err = getURLFormat(urltemplate)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get a url format")
+	}
+	glog.Infof("Using url template [%s] format [%s]", urltemplate, urlformat)
+
 	return &IngressStrategy{
 		client:  client,
 		encoder: encoder,
 		domain:  domain,
 		http:    http,
 		tlsAcme: tlsAcme,
+		urltemplate: urlformat
 	}, nil
 }
 
@@ -65,7 +74,7 @@ func (s *IngressStrategy) Add(svc *api.Service) error {
 		}
 	}
 
-	hostName := fmt.Sprintf("%s.%s.%s", appName, svc.Namespace, s.domain)
+	hostName := fmt.Sprintf(s.urltemplate,, appName, svc.Namespace, s.domain)
 
 	ingress, err := s.client.Ingress(svc.Namespace).Get(appName)
 	createIngress := false

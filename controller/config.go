@@ -57,6 +57,7 @@ type Config struct {
 	WatchCurrentNamespace bool   `yaml:"watch-current-namespace"`
 	HTTP                  bool   `yaml:"http"`
 	TLSAcme               bool   `yaml:"tls-acme"`
+	UrlTemplate           string `yaml:"urltemplate,omitempty"`
 	// original is the input from which the config was parsed.
 	original string
 }

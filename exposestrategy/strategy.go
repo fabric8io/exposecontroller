@@ -29,7 +29,7 @@ var (
 	ApiServicePathAnnotationKey = "api.service.kubernetes.io/path"
 )
 
-func New(exposer, domain, nodeIP, routeHost string, routeUsePath, http, tlsAcme bool, client *client.Client, restClientConfig *restclient.Config, encoder runtime.Encoder) (ExposeStrategy, error) {
+func New(exposer, domain, urltemplate, nodeIP, routeHost string, routeUsePath, http, tlsAcme bool, client *client.Client, restClientConfig *restclient.Config, encoder runtime.Encoder) (ExposeStrategy, error) {
 	switch strings.ToLower(exposer) {
 	case "loadbalancer":
 		strategy, err := NewLoadBalancerStrategy(client, encoder)
@@ -44,7 +44,7 @@ func New(exposer, domain, nodeIP, routeHost string, routeUsePath, http, tlsAcme 
 		}
 		return strategy, nil
 	case "ingress":
-		strategy, err := NewIngressStrategy(client, encoder, domain, http, tlsAcme)
+		strategy, err := NewIngressStrategy(client, encoder, domain, http, tlsAcme, urltemplate)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create ingress expose strategy")
 		}

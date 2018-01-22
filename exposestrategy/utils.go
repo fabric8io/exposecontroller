@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net"
 	"strings"
+	"text/template"
 
 	"github.com/pkg/errors"
 
@@ -117,4 +118,27 @@ func typeOfMaster(c *client.Client) (masterType, error) {
 		}
 	}
 	return kubernetes, nil
+}
+
+type urlTemplateParts struct {
+	Service   string
+	Namespace string
+	Domain    string
+}
+
+func getURLFormat(urltemplate string) (string, error) {
+	if urltemplate == "" {
+		urltemplate = "{{.Service}}.{{.Namespace}}.{{.Domain}}"
+	}
+	placeholders := urlTemplateParts{"%[1]s", "%[2]s", "%[3]s"}
+	tmpl, err := template.New("format").Parse(urltemplate)
+	if err != nil {
+		errors.Wrap(err, "Failed to parse UrlTemplate")
+	}
+	var buffer bytes.Buffer
+	err = tmpl.Execute(&buffer, placeholders)
+	if err != nil {
+		errors.Wrap(err, "Failed to execute UrlTemplate")
+	}
+	return buffer.String(), nil
 }
