@@ -1,0 +1,20 @@
+{{- if .Values.config }}
+apiVersion: v1
+data:
+  config.yml: |-
+{{- if .Values.config.exposer }}
+    exposer: {{ .Values.config.exposer  }}
+{{- end }}
+{{- if .Values.config.domain }}
+    domain: {{ .Values.config.domain }}
+{{- end }}
+{{- if .Values.config.http }}
+    http: {{ .Values.config.http  }}
+{{- end }}
+{{- if .Values.config.tlsacme }}
+    tls-acme: {{ .Values.config.tlsacme  }}
+{{- end }}
+kind: ConfigMap
+metadata:
+  name: exposecontroller
+{{- end }}
