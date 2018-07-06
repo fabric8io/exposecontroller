@@ -8,7 +8,9 @@ data:
 {{- if .Values.config.domain }}
     domain: {{ .Values.config.domain }}
 {{- end }}
-    http: {{ .Values.config.http | default true }}
+{{- if  .Values.config.http }}
+    http: {{  .Values.config.http }}
+{{- end }}
     tls-acme: {{ .Values.config.tlsacme | default false  }}
 kind: ConfigMap
 metadata:
