@@ -135,12 +135,7 @@ func (s *IngressStrategy) Add(svc *api.Service) error {
 				}
 		*/
 	}
-	var tlsSecretName string
-	if s.tlsAcme {
-		ingress.Annotations["kubernetes.io/tls-acme"] = "true"
-		tlsSecretName = "tls-" + appName
-	}
-
+	
 	annotationsForIngress := svc.Annotations["fabric8.io/ingress.annotations"]
 	if annotationsForIngress != "" {
 		annotations := strings.Split(annotationsForIngress, "\n")
@@ -190,8 +185,10 @@ func (s *IngressStrategy) Add(svc *api.Service) error {
 
 		ingress.Spec.Rules = append(ingress.Spec.Rules, rule)
 
-		if s.tlsAcme && svc.Annotations["jenkins-x.io/skip.tls"] != "true" {
-			ingress.Spec.TLS = []extensions.IngressTLS{
+		if (s.tlsAcme && svc.Annotations["jenkins-x.io/skip.tls"] != "true") || (!s.tlsAcme && svc.Annotations["jenkins-x.io/tls"] == "true") {
+			tlsSecretName := "tls-" + appName
+			ingress.Annotations["kubernetes.io/tls-acme"] = "true"
+			ingress.Spec.TLS = []extensions.IngressTLS {
 				{
 					Hosts:      []string{hostName},
 					SecretName: tlsSecretName,
