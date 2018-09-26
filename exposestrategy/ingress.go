@@ -24,17 +24,18 @@ type IngressStrategy struct {
 	client  *client.Client
 	encoder runtime.Encoder
 
-	domain        string
-	tlsSecretName string
-	http          bool
-	tlsAcme       bool
-	urltemplate   string
-	pathMode      string
+	domain          string
+	tlsSecretName   string
+	http            bool
+	tlsAcme         bool
+	tlsSecretName   string
+	urltemplate     string
+	pathMode        string
 }
 
 var _ ExposeStrategy = &IngressStrategy{}
 
-func NewIngressStrategy(client *client.Client, encoder runtime.Encoder, domain string, http, tlsAcme bool, urltemplate, pathMode string) (*IngressStrategy, error) {
+func NewIngressStrategy(client *client.Client, encoder runtime.Encoder, domain string, http, tlsAcme bool, tlsSecretName string, urltemplate, pathMode string) (*IngressStrategy, error) {
 	glog.Infof("NewIngressStrategy 1 %v", http)
 	t, err := typeOfMaster(client)
 	if err != nil {
@@ -60,13 +61,14 @@ func NewIngressStrategy(client *client.Client, encoder runtime.Encoder, domain s
 	glog.Infof("Using url template [%s] format [%s]", urltemplate, urlformat)
 
 	return &IngressStrategy{
-		client:      client,
-		encoder:     encoder,
-		domain:      domain,
-		http:        http,
-		tlsAcme:     tlsAcme,
-		urltemplate: urlformat,
-		pathMode:    pathMode,
+		client:        client,
+		encoder:       encoder,
+		domain:        domain,
+		http:          http,
+		tlsAcme:       tlsAcme,
+		tlsSecretName: tlsSecretName,
+		urltemplate:   urlformat,
+		pathMode:      pathMode,
 	}, nil
 }
 
