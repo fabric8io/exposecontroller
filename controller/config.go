@@ -60,6 +60,7 @@ type Config struct {
 	WatchCurrentNamespace bool     `yaml:"watch-current-namespace" json:"watch_current_namespace"`
 	HTTP                  bool     `yaml:"http" json:"http"`
 	TLSAcme               bool     `yaml:"tls-acme" json:"tls_acme"`
+	TLSSecretName         string   `yaml:"tls-secret-name" json:"tls_secret_name"`
 	UrlTemplate           string   `yaml:"urltemplate,omitempty" json:"url_template"`
 	Services              []string `yaml:"services,omitempty" json:"services"`
 	// original is the input from which the config was parsed.
