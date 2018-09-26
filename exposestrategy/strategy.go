@@ -31,7 +31,7 @@ var (
 	ApiServicePathAnnotationKey = "api.service.kubernetes.io/path"
 )
 
-func New(exposer, domain, urltemplate, nodeIP, routeHost, pathMode string, routeUsePath, http, tlsAcme bool, client *client.Client, restClientConfig *restclient.Config, encoder runtime.Encoder) (ExposeStrategy, error) {
+func New(exposer, domain, urltemplate, nodeIP, routeHost, pathMode string, routeUsePath, http, tlsAcme bool, tlsSecretName string, client *client.Client, restClientConfig *restclient.Config, encoder runtime.Encoder) (ExposeStrategy, error) {
 	switch strings.ToLower(exposer) {
 	case "loadbalancer":
 		strategy, err := NewLoadBalancerStrategy(client, encoder)
@@ -47,7 +47,7 @@ func New(exposer, domain, urltemplate, nodeIP, routeHost, pathMode string, route
 		return strategy, nil
 	case "ingress":
 		glog.Infof("stratagy.New %v", http)
-		strategy, err := NewIngressStrategy(client, encoder, domain, http, tlsAcme, urltemplate, pathMode)
+		strategy, err := NewIngressStrategy(client, encoder, domain, http, tlsAcme, tlsSecretName, urltemplate, pathMode)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create ingress expose strategy")
 		}
@@ -64,7 +64,7 @@ func New(exposer, domain, urltemplate, nodeIP, routeHost, pathMode string, route
 		}
 		return strategy, nil
 	case "":
-		strategy, err := NewAutoStrategy(exposer, domain, urltemplate, nodeIP, routeHost, pathMode, routeUsePath, http, tlsAcme, client, restClientConfig, encoder)
+		strategy, err := NewAutoStrategy(exposer, domain, urltemplate, nodeIP, routeHost, pathMode, routeUsePath, http, tlsAcme, tlsSecretName, client, restClientConfig, encoder)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create auto expose strategy")
 		}
