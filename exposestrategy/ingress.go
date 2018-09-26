@@ -187,7 +187,18 @@ func (s *IngressStrategy) Add(svc *api.Service) error {
 
 		if (s.tlsAcme && svc.Annotations["jenkins-x.io/skip.tls"] != "true") || (!s.tlsAcme && svc.Annotations["jenkins-x.io/tls"] == "true") {
 			tlsSecretName := "tls-" + appName
-			ingress.Annotations["kubernetes.io/tls-acme"] = "true"
+			if s.tlsSecretName != "" {
+			   tlsSecretName = s.tlsSecretName
+			}
+
+			if svc.Annotations["jenkins-x.io/tls-secret-name"] != "" {
+			   tlsSecretName = svc.Annotations["jenkins-x.io/tls-secret-name"]
+			}
+			
+			if svc.Annotations["jenkins-x.io/no-tls-acme"] != "true" {
+			   ingress.Annotations["kubernetes.io/tls-acme"] = "true"
+			}
+			
 			ingress.Spec.TLS = []extensions.IngressTLS {
 				{
 					Hosts:      []string{hostName},
