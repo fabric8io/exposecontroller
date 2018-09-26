@@ -23,7 +23,7 @@ const (
 	stackpointIPEnvVar = "BALANCER_IP"
 )
 
-func NewAutoStrategy(exposer, domain, urltemplate string, nodeIP, routeHost, pathMode string, routeUsePath, http, tlsAcme bool, client *client.Client, restClientConfig *restclient.Config, encoder runtime.Encoder) (ExposeStrategy, error) {
+func NewAutoStrategy(exposer, domain, urltemplate string, nodeIP, routeHost, pathMode string, routeUsePath, http, tlsAcme bool, tlsSecretName string, client *client.Client, restClientConfig *restclient.Config, encoder runtime.Encoder) (ExposeStrategy, error) {
 
 	exposer, err := getAutoDefaultExposeRule(client)
 	if err != nil {
@@ -40,7 +40,7 @@ func NewAutoStrategy(exposer, domain, urltemplate string, nodeIP, routeHost, pat
 		glog.Infof("Using domain: %s", domain)
 	}
 
-	return New(exposer, domain, urltemplate, nodeIP, routeHost, pathMode, routeUsePath, http, tlsAcme, client, restClientConfig, encoder)
+	return New(exposer, domain, urltemplate, nodeIP, routeHost, pathMode, routeUsePath, http, tlsAcme, tlsSecretName, client, restClientConfig, encoder)
 }
 
 func getAutoDefaultExposeRule(c *client.Client) (string, error) {
