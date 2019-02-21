@@ -1,0 +1,36 @@
+module github.com/docker/distribution
+
+require (
+	github.com/Azure/azure-sdk-for-go v0.0.0-20160210183655-95361a2573b1
+	github.com/sirupsen/logrus v0.7.3
+	github.com/aws/aws-sdk-go v0.0.0-20160202195807-49c3892b61af
+	github.com/bugsnag/bugsnag-go v0.0.0-20141110184014-b1d153021fcd
+	github.com/bugsnag/osext v0.0.0-20130617224835-0dd3f918b21b
+	github.com/bugsnag/panicwrap v0.0.0-20151223152923-e2c28503fcd0
+	github.com/denverdino/aliyungo v0.0.0-20151224125954-6ffb587da9da
+	github.com/docker/goamz v0.0.0-20160206023946-f0a21f5b2e12
+	github.com/docker/libtrust v0.0.0-20150114040149-fa567046d9b1
+	github.com/garyburd/redigo v0.0.0-20150301180006-535138d7bcd7
+	github.com/go-ini/ini v1.8.6
+	github.com/golang/protobuf v0.0.0-20160321223353-8d92cf5fc15a
+	github.com/gorilla/context v0.0.0-20140604161150-14f550f51af5
+	github.com/gorilla/handlers v0.0.0-20150720190736-60c7bfde3e33
+	github.com/gorilla/mux v0.0.0-20140926153814-e444e69cbd2e
+	github.com/inconshreveable/mousetrap v1.0.0
+	github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8
+	github.com/mitchellh/mapstructure v0.0.0-20150528213339-482a9fd5fa83
+	github.com/ncw/swift v0.0.0-20151102203822-c54732e87b0b
+	github.com/spf13/cobra v0.0.0-20150605180824-312092086bed
+	github.com/spf13/pflag v0.0.0-20150601220040-564482062245
+	github.com/stevvooe/resumable v0.0.0-20150521211217-51ad44105773
+	github.com/yvasiyarov/go-metrics v0.0.0-20140926110328-57bccd1ccd43
+	github.com/yvasiyarov/gorelic v0.0.0-20141212073537-a9bba5b9ab50
+	github.com/yvasiyarov/newrelic_platform_go v0.0.0-20140908184405-b21fdbd4370f
+	golang.org/x/crypto v0.0.0-20150531185727-c10c31b5e94b
+	golang.org/x/net v0.0.0-20160322021652-4876518f9e71
+	golang.org/x/oauth2 v0.0.0-20160304213135-045497edb623
+	google.golang.org/api v0.0.0-20160322025152-9bf6e6e569ff
+	google.golang.org/cloud v0.0.0-20151119220103-975617b05ea8
+	gopkg.in/check.v1 v1.0.0-20141024133853-64131543e789
+	gopkg.in/yaml.v2 v2.0.0-20150116202057-bef53efd0c76
+)
