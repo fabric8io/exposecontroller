@@ -29,7 +29,7 @@ import (
 	oclient "github.com/openshift/origin/pkg/client"
 	oauthapi "github.com/openshift/origin/pkg/oauth/api"
 	oauthapiv1 "github.com/openshift/origin/pkg/oauth/api/v1"
-	"gopkg.in/v2/yaml"
+	yaml "gopkg.in/yaml.v2"
 )
 
 const (

@@ -8,7 +8,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/pkg/errors"
-	"gopkg.in/v2/yaml"
+	yaml "gopkg.in/yaml.v2"
 	"k8s.io/kubernetes/pkg/api"
 	client "k8s.io/kubernetes/pkg/client/unversioned"
 	"k8s.io/kubernetes/pkg/runtime"
