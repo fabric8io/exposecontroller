@@ -5,7 +5,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	eventtypes "github.com/docker/docker/api/types/events"
 )
 

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/registry"
