@@ -2,7 +2,6 @@ module github.com/jenkins-x/exposecontroller
 
 require (
 	cloud.google.com/go v0.0.0-20160916222349-837ecd5c3c75
-	github.com/Sirupsen/logrus v0.0.0-20150430065829-aaf92c957121
 	github.com/beorn7/perks v0.0.0-20160804104726-4c0e84591b9a
 	github.com/blang/semver v3.3.0+incompatible
 	github.com/cloudfoundry-incubator/candiedyaml v0.0.0-20160429080125-99c3df83b515
@@ -14,7 +13,7 @@ require (
 	github.com/docker/docker v0.0.0-20160919125806-c2d6e76a7046
 	github.com/docker/engine-api v0.0.0-20160908232104-4290f40c0566
 	github.com/docker/go-connections v0.0.0-20160903000609-988efe982fde
-	github.com/docker/go-units v0.0.0-20160908210652-f2145db70349
+	github.com/docker/go-units v0.2.0
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7
 	github.com/emicklei/go-restful v0.0.0-20160919095221-c795848f1d7f
 	github.com/evanphx/json-patch v0.0.0-20160803213441-30afec6a1650
@@ -24,7 +23,7 @@ require (
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/groupcache v0.0.0-20160803200408-a6b377e3400b
 	github.com/golang/protobuf v0.0.0-20160829194233-1f49d83d9aa0
-	github.com/google/cadvisor v0.0.0-20160913222418-d7a44cb1a2c6
+	github.com/google/cadvisor v0.23.6
 	github.com/google/gofuzz v0.0.0-20160201174807-fd52762d25a4
 	github.com/gorilla/context v1.1.1
 	github.com/gorilla/mux v0.0.0-20160902153343-0a192a193177
@@ -42,6 +41,7 @@ require (
 	github.com/prometheus/client_model v0.0.0-20150212101744-fa8ad6fec335
 	github.com/prometheus/common v0.0.0-20160917184401-9a94032291f2
 	github.com/prometheus/procfs v0.0.0-20160411190841-abf152e5f3e9
+	github.com/sirupsen/logrus v0.7.3
 	github.com/spf13/cobra v0.0.0-20160830174925-9c28e4bbd74e
 	github.com/spf13/pflag v0.0.0-20160915153101-c7e63cf4530b
 	github.com/ugorji/go v0.0.0-20160911041919-98ef79d6c615
@@ -50,5 +50,12 @@ require (
 	golang.org/x/sys v0.0.0-20160916181909-8f0908ab3b24
 	google.golang.org/appengine v0.0.0-20160914034556-78199dcb0669
 	gopkg.in/inf.v0 v0.9.0
+	gopkg.in/yaml.v2 v2.2.2
 	k8s.io/kubernetes v0.0.0-20160901013233-52492b4bff99
 )
+
+replace github.com/docker/docker => ./vendor/github.com/docker/docker
+
+replace github.com/docker/distribution => ./vendor/github.com/docker/distribution
+
+replace k8s.io/kubernetes => ./vendor/k8s.io/kubernetes

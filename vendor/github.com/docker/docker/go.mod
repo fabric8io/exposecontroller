@@ -1,1 +1,1 @@
-module github.com/jenkins-x/exposecontroller/vendor/github.com/docker/docker
+module github.com/docker/docker
