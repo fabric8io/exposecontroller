@@ -130,10 +130,15 @@ func (s *AmbassadorStrategy) Add(svc *api.Service) error {
 	glog.Infof("Exposing Port %d of Service %s", servicePort, svc.Name)
 
 	// Here's where we start adding the annotations to our service
+	prefix := ""
+	if path != nil {
+		prefix = path
+	}
 	ambassadorAnnotations := map[string]interface{}{
 		"apiVersion": "ambassador/v1",
 		"kind":       "Mapping",
 		"host":       hostName,
+		"prefix":     prefix,
 		"name":       fmt.Sprintf("%s_mapping", hostName),
 		"service":    fmt.Sprintf("%s.%s:%s", appName, svc.Namespace, strconv.Itoa(servicePort))}
 
