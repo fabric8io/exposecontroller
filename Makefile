@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+REGISTRY := docker.io/jenkinsxio
 GO := GO15VENDOREXPERIMENT=1 go
 VERSION := $(shell cat version/VERSION)
 OS := $(shell uname)
@@ -55,20 +56,20 @@ $(ORIGINAL_GOPATH)/bin/exposecontroller: out/exposecontroller-$(GOOS)-$(GOARCH)
 
 out/exposecontroller: out/exposecontroller-$(GOOS)-$(GOARCH) fmt
 
-out/exposecontroller-darwin-amd64: gopath $(shell $(GOFILES)) version/VERSION
+out/exposecontroller-darwin-amd64: $(GOPATH)/src/$(ORG) $(shell $(GOFILES)) version/VERSION
 	CGO_ENABLED=0 GOARCH=amd64 GOOS=darwin go build $(BUILDFLAGS) -o $(BUILD_DIR)/exposecontroller-darwin-amd64 $(ROOT_PACKAGE)
 
-out/exposecontroller-linux-amd64: gopath $(shell $(GOFILES)) version/VERSION
+out/exposecontroller-linux-amd64: $(GOPATH)/src/$(ORG) $(shell $(GOFILES)) version/VERSION
 	CGO_ENABLED=0 GOARCH=amd64 GOOS=linux go build $(BUILDFLAGS) -o $(BUILD_DIR)/exposecontroller-linux-amd64 $(ROOT_PACKAGE)
 
-out/exposecontroller-windows-amd64.exe: gopath $(shell $(GOFILES)) version/VERSION
+out/exposecontroller-windows-amd64.exe: $(GOPATH)/src/$(ORG) $(shell $(GOFILES)) version/VERSION
 	CGO_ENABLED=0 GOARCH=amd64 GOOS=windows go build $(BUILDFLAGS) -o $(BUILD_DIR)/exposecontroller-windows-amd64.exe $(ROOT_PACKAGE)
 
-out/exposecontroller-linux-arm: gopath $(shell $(GOFILES)) version/VERSION
+out/exposecontroller-linux-arm: $(GOPATH)/src/$(ORG) $(shell $(GOFILES)) version/VERSION
 	CGO_ENABLED=0 GOARCH=arm GOOS=linux go build $(BUILDFLAGS) -o $(BUILD_DIR)/exposecontroller-linux-arm $(ROOT_PACKAGE)
 
 .PHONY: test
-test: gopath out/exposecontroller
+test: $(GOPATH)/src/$(ORG) out/exposecontroller
 	go test -v $(GOPACKAGES)
 
 .PHONY: release
@@ -97,9 +98,6 @@ endif
 .PHONY: cross
 cross: out/exposecontroller-linux-amd64 out/exposecontroller-darwin-amd64 out/exposecontroller-windows-amd64.exe out/exposecontroller-linux-arm
 
-.PHONY: gopath
-gopath: $(GOPATH)/src/$(ORG)
-
 $(GOPATH)/src/$(ORG):
 	mkdir -p $(GOPATH)/src/$(ORG)
 	ln -s -f $(shell pwd) $(GOPATH)/src/$(ORG)
@@ -112,14 +110,14 @@ clean:
 
 .PHONY: docker
 docker: out/exposecontroller-linux-amd64
-	docker build -t "jenkinsxio/exposecontroller:dev" .
+	docker build -t "$(REGISTRY)/exposecontroller:dev" .
 
 .PHONY: docker-release
 docker-release: out/exposecontroller-linux-amd64
-	docker build -t docker.io/jenkinsxio/exposecontroller:${VERSION} .
-	docker tag docker.io/jenkinsxio/exposecontroller:${VERSION} docker.io/jenkinsxio/exposecontroller:latest
-	docker push docker.io/jenkinsxio/exposecontroller:${VERSION}
-	docker push docker.io/jenkinsxio/exposecontroller:latest
+	docker build -t $(REGISTRY)/exposecontroller:${VERSION} .
+	docker tag $(REGISTRY)/exposecontroller:${VERSION} $(REGISTRY)/exposecontroller:latest
+	docker push $(REGISTRY)/exposecontroller:${VERSION}
+	docker push $(REGISTRY)/exposecontroller:latest
 
 kube-redeploy: docker
 	kubectl delete pod -l project=exposecontroller-app
