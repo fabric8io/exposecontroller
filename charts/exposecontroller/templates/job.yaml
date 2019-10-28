@@ -34,12 +34,7 @@ spec:
               fieldPath: metadata.namespace
         image: "{{ .Values.Image }}:{{ .Values.ImageTag }}"
         resources:
-          limits:
-            cpu: 100m
-            memory: 256Mi
-          requests:
-            cpu: 80m
-            memory: 128Mi
+{{ toYaml .Values.resources | indent 8 }}
         name: {{ .Chart.Name }}
         command: ["/exposecontroller"]
         args: 
