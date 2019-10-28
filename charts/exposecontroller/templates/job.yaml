@@ -34,7 +34,7 @@ spec:
               fieldPath: metadata.namespace
         image: "{{ .Values.Image }}:{{ .Values.ImageTag }}"
         resources:
-{{ toYaml .Values.resources | indent 8 }}
+{{ toYaml .Values.resources | indent 10 }}
         name: {{ .Chart.Name }}
         command: ["/exposecontroller"]
         args: 
