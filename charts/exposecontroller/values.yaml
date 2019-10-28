@@ -2,6 +2,15 @@ Image: "gcr.io/jenkinsxio/exposecontroller"
 ImageTag: "latest"
 BackoffLimit: 5
 Annotations: {}
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 256Mi
+  requests:
+    cpu: 80m
+    memory: 128Mi
+
   # use value of `path` to use path based ingress
 # config:
 #   pathMode: "path"
