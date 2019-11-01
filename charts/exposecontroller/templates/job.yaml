@@ -1,3 +1,4 @@
+{{- if not .Values.RunAsDaemon }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -43,3 +44,4 @@ spec:
 {{- end }}
       serviceAccountName: {{ .Chart.Name }}
       restartPolicy: Never
+{{- end }}
