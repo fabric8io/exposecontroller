@@ -3,6 +3,9 @@ ImageTag: "latest"
 BackoffLimit: 5
 Annotations: {}
 
+# in case to run the helm as a deployment
+RunAsDaemon: false
+
 resources:
   limits:
     cpu: 100m
