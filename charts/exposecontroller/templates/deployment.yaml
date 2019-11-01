@@ -31,6 +31,8 @@ spec:
         image: "{{ .Values.Image }}:{{ .Values.ImageTag }}"
         name: {{ .Chart.Name }}
         command: ["/exposecontroller"]
+        resources:
+{{ toYaml .Values.resources | indent 10 }}
         args:
         - --daemon
 {{- range .Values.Args }}
