@@ -1,9 +1,9 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	"k8s.io/kubernetes/pkg/client/unversioned"
 	"net/http"
 	"net/http/pprof"
 	"os"
@@ -12,12 +12,20 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/golang/glog"
+	log "github.com/sirupsen/logrus"
+
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
+
 	"github.com/jenkins-x/exposecontroller/controller"
 	"github.com/jenkins-x/exposecontroller/version"
 	"github.com/spf13/pflag"
-	"k8s.io/kubernetes/pkg/api"
-	kubectlutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/kubernetes"
+	//"k8s.io/client-go/tools/clientcmd"
+	kubectlutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
 )
 
 const (
@@ -52,72 +60,80 @@ var (
 )
 
 func main() {
-	factory := kubectlutil.NewFactory(nil)
-	factory.BindFlags(flags)
-	factory.BindExternalFlags(flags)
+	kubeConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag()
+	factory := kubectlutil.NewFactory(kubeConfigFlags)
+
+	kubeConfigFlags.AddFlags(flags)
+	flags.AddGoFlagSet(flag.CommandLine)
+
 	flags.Parse(os.Args)
-	flag.CommandLine.Parse([]string{})
 
-	glog.Infof("Using build: %v", version.Version)
+	log.Infof("Using build: %v", version.Version)
 
-	kubeClient, err := factory.Client()
+	clientset, err := factory.KubernetesClientSet()
 	for i := 0; i < 30; i++ {
 		if err != nil {
-			glog.Warningf("failed to create client, retrying: %s", err)
+			log.Warningf("failed to create clientset, retrying: %s", err)
 			time.Sleep(1 * time.Second)
-			kubeClient, err = factory.Client()
+			clientset, err = factory.KubernetesClientSet()
 		} else {
 			break
 		}
 	}
 	if err != nil {
-		glog.Fatalf("failed to create client: %s", err)
-	}
-	currentNamespace := os.Getenv("KUBERNETES_NAMESPACE")
-	if len(currentNamespace) == 0 {
-		currentNamespace, _, err = factory.DefaultNamespace()
-		if err != nil {
-			glog.Fatalf("Could not find the current namespace: %v", err)
-		}
+		log.Fatalf("failed to create clientset: %s", err)
+		panic(err)
 	}
 
-	restClientConfig, err := factory.ClientConfig()
-	if err != nil {
-		glog.Fatalf("failed to create REST client config: %s", err)
+	encoder := scheme.DefaultJSONEncoder()
+	if encoder == nil {
+		log.Fatalf("encoder is nil")
+		panic(err)
+	}
+
+	currentNamespace := os.Getenv("KUBERNETES_NAMESPACE")
+	if len(currentNamespace) == 0 {
+		/*
+					 * TODO, get de default/current namespace
+			                currentNamespace, _, err = clientset.Namespace()
+			                if err != nil {
+			                        log.Fatalf("Could not find the current namespace: %v", err)
+			                }
+		*/
 	}
 
 	controllerConfig, exists, err := controller.LoadFile(*configFile)
 	if !exists || err != nil {
 		if err != nil {
-			glog.Warningf("failed to load config file: %s", err)
+			log.Warningf("failed to load config file: %s", err)
 		}
 
-		cc2 := tryFindConfig(kubeClient, currentNamespace)
+		cc2 := tryFindConfig(clientset, currentNamespace)
 		if cc2 == nil {
 			// lets try find the ConfigMap in the dev namespace
-			resource, err := kubeClient.Namespaces().Get(currentNamespace)
+			resource, err := clientset.CoreV1().Namespaces().Get(context.TODO(), currentNamespace, metav1.GetOptions{})
 			if err == nil && resource != nil {
 				labels := resource.Labels
 				if labels != nil {
 					ns := labels["team"]
 					if ns == "" {
-						glog.Warningf("No 'team' label on Namespace %s", currentNamespace)
+						log.Warningf("No 'team' label on Namespace %s", currentNamespace)
 					} else {
-						glog.Infof("trying to find the ConfigMap in the Dev Namespace %s", ns)
+						log.Printf("trying to find the ConfigMap in the Dev Namespace %s", ns)
 
-						cc2 = tryFindConfig(kubeClient, ns)
+						cc2 = tryFindConfig(clientset, ns)
 					}
 				} else {
-					glog.Warningf("No labels on Namespace %s", currentNamespace)
+					log.Warningf("No labels on Namespace %s", currentNamespace)
 				}
 			} else {
-				glog.Warningf("Failed to load Namespace %s: %s", currentNamespace, err)
+				log.Warningf("Failed to load Namespace %s: %s", currentNamespace, err)
 
 				// lets try default to trimming the lasts path from the current namespace
 				idx := strings.LastIndex(currentNamespace, "-")
 				if idx > 1 {
 					ns := currentNamespace[0:idx]
-					cc2 = tryFindConfig(kubeClient, ns)
+					cc2 = tryFindConfig(clientset, ns)
 				}
 			}
 		}
@@ -125,9 +141,10 @@ func main() {
 			controllerConfig = cc2
 		}
 	} else {
-		glog.Infof("Loaded config file %s", *configFile)
+		log.Printf("Loaded config file %s", *configFile)
 	}
-	glog.Infof("Config file before overrides %s", controllerConfig.String())
+
+	log.Printf("Config file before overrides:\n%s", controllerConfig.String())
 
 	if *domain != "" {
 		controllerConfig.Domain = *domain
@@ -157,30 +174,30 @@ func main() {
 		controllerConfig.Services = strings.Split(*services, ",")
 	}
 
-	glog.Infof("Config file after overrides %s", controllerConfig.String())
+	log.Printf("Config file after overrides:\n%s", controllerConfig.String())
 
 	//watchNamespaces := api.NamespaceAll
 	watchNamespaces := controllerConfig.WatchNamespaces
 	if controllerConfig.WatchCurrentNamespace {
 		if len(currentNamespace) == 0 {
-			glog.Fatalf("No current namespace found!")
+			log.Fatalf("No current namespace found!")
 		}
 		watchNamespaces = currentNamespace
 	}
 
 	if *cleanup {
-		ingress, err := kubeClient.Ingress(watchNamespaces).List(api.ListOptions{})
+		ingress, err := clientset.ExtensionsV1beta1().Ingresses(watchNamespaces).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			glog.Fatalf("Could not get ingress rules in namespace %s %v", watchNamespaces, err)
+			log.Fatalf("Could not get ingress rules in namespace %s %v", watchNamespaces, err)
 		}
 
 		for _, i := range ingress.Items {
 			if i.Annotations["fabric8.io/generated-by"] == "exposecontroller" {
 				if filter == nil || strings.Contains(i.Name, *filter) {
-					glog.Infof("Deleting ingress %s", i.Name)
-					err := kubeClient.Ingress(watchNamespaces).Delete(i.Name, nil)
+					log.Infof("Deleting ingress %s", i.Name)
+					err := clientset.ExtensionsV1beta1().Ingresses(watchNamespaces).Delete(context.TODO(), i.Name, metav1.DeleteOptions{})
 					if err != nil {
-						glog.Fatalf("Could not find the current namespace: %v", err)
+						log.Fatalf("Could not find the current namespace: %s", err)
 					}
 				}
 			}
@@ -189,11 +206,11 @@ func main() {
 	}
 
 	if *daemon {
-		glog.Infof("Watching services in namespaces: `%s`", watchNamespaces)
+		log.Printf("Watching services in namespaces: `%s`", watchNamespaces)
 
-		c, err := controller.NewController(kubeClient, restClientConfig, factory.JSONEncoder(), *resyncPeriod, watchNamespaces, controllerConfig)
+		c, err := controller.NewController(clientset, encoder, *resyncPeriod, watchNamespaces, controllerConfig)
 		if err != nil {
-			glog.Fatalf("%s", err)
+			log.Fatalf("%s", err)
 		}
 
 		go registerHandlers()
@@ -201,10 +218,10 @@ func main() {
 
 		c.Run()
 	} else {
-		glog.Infof("Running in : `%s`", watchNamespaces)
-		c, err := controller.NewController(kubeClient, restClientConfig, factory.JSONEncoder(), *resyncPeriod, watchNamespaces, controllerConfig)
+		log.Infof("Running in : `%s`", watchNamespaces)
+		c, err := controller.NewController(clientset, encoder, *resyncPeriod, watchNamespaces, controllerConfig)
 		if err != nil {
-			glog.Fatalf("%s", err)
+			log.Fatalf("%s", err)
 		}
 
 		ticker := time.NewTicker(5 * time.Second)
@@ -230,33 +247,33 @@ func main() {
 	}
 }
 
-func tryFindConfig(kubeClient *unversioned.Client, ns string) *controller.Config {
+func tryFindConfig(clientset *kubernetes.Clientset, ns string) *controller.Config {
 	var controllerConfig *controller.Config
-	cm, err := kubeClient.ConfigMaps(ns).Get("exposecontroller")
+	cm, err := clientset.CoreV1().ConfigMaps(ns).Get(context.TODO(), "exposecontroller", metav1.GetOptions{})
 	if err == nil {
-		glog.Infof("Using ConfigMap exposecontroller to load configuration...")
+		log.Infof("Using ConfigMap exposecontroller to load configuration...")
 		// TODO we could allow the config to be passed in via key/value pairs?
 		text := cm.Data["config.yml"]
 		if text != "" {
 			controllerConfig, err = controller.Load(text)
 			if err != nil {
-				glog.Warningf("Could not parse the config text from exposecontroller ConfigMap  %v", err)
+				log.Warningf("Could not parse the config text from exposecontroller ConfigMap %s", err)
 			}
-			glog.Infof("Loaded ConfigMap exposecontroller to load configuration!")
+			log.Infof("Loaded ConfigMap exposecontroller to load configuration!")
 		}
 	} else {
-		glog.Warningf("Could not find ConfigMap exposecontroller ConfigMap in namespace %s", ns)
+		log.Warningf("Could not find ConfigMap exposecontroller ConfigMap in namespace %s", ns)
 
-		cm, err = kubeClient.ConfigMaps(ns).Get("ingress-config")
+		cm, err = clientset.CoreV1().ConfigMaps(ns).Get(context.TODO(), "ingress-config", metav1.GetOptions{})
 		if err != nil {
-			glog.Warningf("Could not find ConfigMap ingress-config ConfigMap in namespace %s", ns)
+			log.Warningf("Could not find ConfigMap ingress-config ConfigMap in namespace %s", ns)
 		} else {
-			glog.Infof("Loaded ConfigMap ingress-config to load configuration!")
+			log.Infof("Loaded ConfigMap ingress-config to load configuration!")
 			data := cm.Data
 			if data != nil {
 				controllerConfig, err = controller.MapToConfig(data)
 				if err != nil {
-					glog.Warningf("Failed to convert Map data %#v from configMap ingress-config in namespace %s due to: %s\n", controllerConfig, ns, err)
+					log.Warningf("Failed to convert Map data %#v from configMap ingress-config in namespace %s due to: %s\n", controllerConfig, ns, err)
 				}
 			}
 		}
@@ -277,13 +294,13 @@ func registerHandlers() {
 		Addr:    fmt.Sprintf(":%v", *healthzPort),
 		Handler: mux,
 	}
-	glog.Fatal(server.ListenAndServe())
+	log.Fatal(server.ListenAndServe())
 }
 
 func handleSigterm(c *controller.Controller) {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 	sig := <-signalChan
-	glog.Infof("Received %s, shutting down", sig)
+	log.Infof("Received %s, shutting down", sig)
 	c.Stop()
 }

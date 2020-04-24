@@ -1,15 +1,18 @@
 package exposestrategy
 
 import (
+	"bytes"
+	"context"
+	"fmt"
 	"strings"
 
-	"github.com/golang/glog"
 	"github.com/pkg/errors"
-	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/unversioned"
-	"k8s.io/kubernetes/pkg/client/restclient"
-	client "k8s.io/kubernetes/pkg/client/unversioned"
-	"k8s.io/kubernetes/pkg/runtime"
+	log "github.com/sirupsen/logrus"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -23,13 +26,13 @@ const (
 	stackpointIPEnvVar = "BALANCER_IP"
 )
 
-func NewAutoStrategy(exposer, domain, internalDomain, urltemplate string, nodeIP, routeHost, pathMode string, routeUsePath, http, tlsAcme bool, tlsSecretName string, tlsUseWildcard bool, ingressClass string, client *client.Client, restClientConfig *restclient.Config, encoder runtime.Encoder) (ExposeStrategy, error) {
+func NewAutoStrategy(exposer, domain, internalDomain, urltemplate string, nodeIP, routeHost, pathMode string, routeUsePath, http, tlsAcme bool, tlsSecretName string, tlsUseWildcard bool, ingressClass string, client *kubernetes.Clientset, encoder runtime.Encoder) (ExposeStrategy, error) {
 
 	exposer, err := getAutoDefaultExposeRule(client)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to automatically get exposer rule.  consider setting 'exposer' type in config.yml")
 	}
-	glog.Infof("Using exposer strategy: %s", exposer)
+	log.Infof("Using exposer strategy: %s", exposer)
 
 	// only try to get domain if we need wildcard dns and one wasn't given to us
 	if len(domain) == 0 && (strings.EqualFold(ingress, exposer)) {
@@ -37,13 +40,13 @@ func NewAutoStrategy(exposer, domain, internalDomain, urltemplate string, nodeIP
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get a domain")
 		}
-		glog.Infof("Using domain: %s", domain)
+		log.Infof("Using domain: %s", domain)
 	}
 
-	return New(exposer, domain, internalDomain, urltemplate, nodeIP, routeHost, pathMode, routeUsePath, http, tlsAcme, tlsSecretName, tlsUseWildcard, ingressClass, client, restClientConfig, encoder)
+	return New(exposer, domain, internalDomain, urltemplate, nodeIP, routeHost, pathMode, routeUsePath, http, tlsAcme, tlsSecretName, tlsUseWildcard, ingressClass, client, encoder)
 }
 
-func getAutoDefaultExposeRule(c *client.Client) (string, error) {
+func getAutoDefaultExposeRule(c *kubernetes.Clientset) (string, error) {
 	t, err := typeOfMaster(c)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get type of master")
@@ -68,8 +71,22 @@ func getAutoDefaultExposeRule(c *client.Client) (string, error) {
 	return ingress, nil
 }
 
-func getAutoDefaultDomain(c *client.Client) (string, error) {
-	nodes, err := c.Nodes().List(api.ListOptions{})
+func getLabelMapAsString(m map[string]string) string {
+	b := new(bytes.Buffer)
+	for key, value := range m {
+		fmt.Fprintf(b, "%s=%s,", key, value)
+	}
+
+	s := b.String()
+	if len(s) > 0 {
+		s = s[:len(s)-1]
+	}
+
+	return s
+}
+
+func getAutoDefaultDomain(c *kubernetes.Clientset) (string, error) {
+	nodes, err := c.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return "", errors.Wrap(err, "failed to find any nodes")
 	}
@@ -87,8 +104,8 @@ func getAutoDefaultDomain(c *client.Client) (string, error) {
 	}
 
 	// check for a gofabric8 ingress labelled node
-	selector, err := unversioned.LabelSelectorAsSelector(&unversioned.LabelSelector{MatchLabels: map[string]string{"fabric8.io/externalIP": "true"}})
-	nodes, err = c.Nodes().List(api.ListOptions{LabelSelector: selector})
+	selector, err := metav1.LabelSelectorAsMap(&metav1.LabelSelector{MatchLabels: map[string]string{"fabric8.io/externalIP": "true"}})
+	nodes, err = c.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: getLabelMapAsString(selector)})
 	if len(nodes.Items) == 1 {
 		node := nodes.Items[0]
 		ip, err := getExternalIP(node)
@@ -99,7 +116,7 @@ func getAutoDefaultDomain(c *client.Client) (string, error) {
 	}
 
 	// look for a stackpoint HA proxy
-	pod, _ := c.Pods(stackpointNS).Get(stackpointHAProxy)
+	pod, _ := c.CoreV1().Pods(stackpointNS).Get(context.TODO(), stackpointHAProxy, metav1.GetOptions{})
 	if pod != nil {
 		containers := pod.Spec.Containers
 		for _, container := range containers {
@@ -115,8 +132,8 @@ func getAutoDefaultDomain(c *client.Client) (string, error) {
 	return "", errors.New("no known automatic ways to get an external ip to use with nip.  Please configure exposecontroller configmap manually see https://github.com/jenkins-x/exposecontroller#configuration")
 }
 
-// copied from k8s.io/kubernetes/pkg/master/master.go
-func getExternalIP(node api.Node) (string, error) {
+// copied from k8s.io/kubernetes/master/master.go
+func getExternalIP(node corev1.Node) (string, error) {
 	var fallback string
 	ann := node.Annotations
 	if ann != nil {
@@ -128,18 +145,15 @@ func getExternalIP(node api.Node) (string, error) {
 	}
 	for ix := range node.Status.Addresses {
 		addr := &node.Status.Addresses[ix]
-		if addr.Type == api.NodeExternalIP {
+		if addr.Type == corev1.NodeExternalIP {
 			return addr.Address, nil
 		}
-		if fallback == "" && addr.Type == api.NodeLegacyHostIP {
-			fallback = addr.Address
-		}
-		if fallback == "" && addr.Type == api.NodeInternalIP {
+		if fallback == "" && addr.Type == corev1.NodeInternalIP {
 			fallback = addr.Address
 		}
 	}
 	if fallback != "" {
 		return fallback, nil
 	}
-	return "", errors.New("no node ExternalIP or LegacyHostIP found")
+	return "", errors.New("no node ExternalIP or InternalIP found")
 }

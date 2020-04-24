@@ -4,18 +4,19 @@ import (
 	"reflect"
 	"testing"
 
-	"k8s.io/kubernetes/pkg/api"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestAddServiceAnnotationWithProtocol(t *testing.T) {
 	tests := []struct {
-		svc                 *api.Service
+		svc                 *corev1.Service
 		hostName            string
 		protocol            string
 		expectedAnnotations map[string]string
 	}{
 		{
-			svc:      &api.Service{},
+			svc:      &corev1.Service{},
 			hostName: "example.com",
 			protocol: "http",
 			expectedAnnotations: map[string]string{
@@ -23,7 +24,7 @@ func TestAddServiceAnnotationWithProtocol(t *testing.T) {
 			},
 		},
 		{
-			svc:      &api.Service{},
+			svc:      &corev1.Service{},
 			hostName: "example.com",
 			protocol: "https",
 			expectedAnnotations: map[string]string{
@@ -31,8 +32,8 @@ func TestAddServiceAnnotationWithProtocol(t *testing.T) {
 			},
 		},
 		{
-			svc: &api.Service{
-				ObjectMeta: api.ObjectMeta{
+			svc: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						ApiServicePathAnnotationKey: "some/path",
 					},
@@ -46,8 +47,8 @@ func TestAddServiceAnnotationWithProtocol(t *testing.T) {
 			},
 		},
 		{
-			svc: &api.Service{
-				ObjectMeta: api.ObjectMeta{
+			svc: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						ExposeHostNameAsAnnotationKey: "osiris.deislabs.io/ingressHostname",
 					},
@@ -78,16 +79,16 @@ func TestAddServiceAnnotationWithProtocol(t *testing.T) {
 
 func TestRemoveServiceAnnotation(t *testing.T) {
 	tests := []struct {
-		svc                 *api.Service
+		svc                 *corev1.Service
 		expectedAnnotations map[string]string
 	}{
 		{
-			svc:                 &api.Service{},
+			svc:                 &corev1.Service{},
 			expectedAnnotations: nil,
 		},
 		{
-			svc: &api.Service{
-				ObjectMeta: api.ObjectMeta{
+			svc: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						ExposeAnnotationKey: "http://example.com",
 						"some-key":          "some value",
@@ -99,8 +100,8 @@ func TestRemoveServiceAnnotation(t *testing.T) {
 			},
 		},
 		{
-			svc: &api.Service{
-				ObjectMeta: api.ObjectMeta{
+			svc: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						ExposeHostNameAsAnnotationKey:        "osiris.deislabs.io/ingressHostname",
 						"osiris.deislabs.io/ingressHostname": "example.com",

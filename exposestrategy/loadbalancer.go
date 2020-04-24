@@ -1,58 +1,49 @@
 package exposestrategy
 
 import (
-	"reflect"
+	"context"
 
 	"github.com/pkg/errors"
 
-	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
-	client "k8s.io/kubernetes/pkg/client/unversioned"
-	"k8s.io/kubernetes/pkg/runtime"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	types "k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 )
 
 type LoadBalancerStrategy struct {
-	client  *client.Client
+	client  *kubernetes.Clientset
 	encoder runtime.Encoder
 }
 
 var _ ExposeStrategy = &LoadBalancerStrategy{}
 
-func NewLoadBalancerStrategy(client *client.Client, encoder runtime.Encoder) (*LoadBalancerStrategy, error) {
+func NewLoadBalancerStrategy(client *kubernetes.Clientset, encoder runtime.Encoder) (*LoadBalancerStrategy, error) {
 	return &LoadBalancerStrategy{
 		client:  client,
 		encoder: encoder,
 	}, nil
 }
 
-func (s *LoadBalancerStrategy) Add(svc *api.Service) error {
-	cloned, err := api.Scheme.DeepCopy(svc)
-	if err != nil {
-		return errors.Wrap(err, "failed to clone service")
-	}
-	clone, ok := cloned.(*api.Service)
-	if !ok {
-		return errors.Errorf("cloned to wrong type: %s", reflect.TypeOf(cloned))
-	}
+func (s *LoadBalancerStrategy) Add(svc *corev1.Service) error {
+	clone := svc.DeepCopy()
 
-	clone.Spec.Type = api.ServiceTypeLoadBalancer
+	clone.Spec.Type = corev1.ServiceTypeLoadBalancer
 	if len(clone.Spec.LoadBalancerIP) > 0 {
+		var err error
 		clone, err = addServiceAnnotation(clone, clone.Spec.LoadBalancerIP)
 		if err != nil {
 			return errors.Wrap(err, "failed to add service annotation")
 		}
 	}
 
-	patch, err := createPatch(svc, clone, s.encoder, v1.Service{})
+	patch, err := createPatch(svc, clone, s.encoder, corev1.Service{})
 	if err != nil {
 		return errors.Wrap(err, "failed to create patch")
 	}
 	if patch != nil {
-		err = s.client.Patch(api.StrategicMergePatchType).
-			Resource("services").
-			Namespace(svc.Namespace).
-			Name(svc.Name).
-			Body(patch).Do().Error()
+		_, err = s.client.CoreV1().Services(svc.Namespace).Patch(context.TODO(), svc.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
 		if err != nil {
 			return errors.Wrap(err, "failed to send patch")
 		}
@@ -61,28 +52,17 @@ func (s *LoadBalancerStrategy) Add(svc *api.Service) error {
 	return nil
 }
 
-func (s *LoadBalancerStrategy) Remove(svc *api.Service) error {
-	cloned, err := api.Scheme.DeepCopy(svc)
-	if err != nil {
-		return errors.Wrap(err, "failed to clone service")
-	}
-	clone, ok := cloned.(*api.Service)
-	if !ok {
-		return errors.Errorf("cloned to wrong type: %s", reflect.TypeOf(svc))
-	}
+func (s *LoadBalancerStrategy) Remove(svc *corev1.Service) error {
+	clone := svc.DeepCopy()
 
 	clone = removeServiceAnnotation(clone)
 
-	patch, err := createPatch(svc, clone, s.encoder, v1.Service{})
+	patch, err := createPatch(svc, clone, s.encoder, corev1.Service{})
 	if err != nil {
 		return errors.Wrap(err, "failed to create patch")
 	}
 	if patch != nil {
-		err = s.client.Patch(api.StrategicMergePatchType).
-			Resource("services").
-			Namespace(clone.Namespace).
-			Name(clone.Name).
-			Body(patch).Do().Error()
+		_, err = s.client.CoreV1().Services(clone.Namespace).Patch(context.TODO(), clone.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
 		if err != nil {
 			return errors.Wrap(err, "failed to send patch")
 		}

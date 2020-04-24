@@ -2,22 +2,23 @@ package exposestrategy
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net"
+	"net/url"
 	"strings"
 	"text/template"
 
 	"github.com/pkg/errors"
 
-	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/unversioned"
-	"k8s.io/kubernetes/pkg/runtime"
-	"k8s.io/kubernetes/pkg/util/strategicpatch"
-
-	client "k8s.io/kubernetes/pkg/client/unversioned"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/client-go/kubernetes"
 )
 
-func findHttpProtocol(svc *api.Service, hostName string) string {
+func findHttpProtocol(svc *corev1.Service, hostName string) string {
 	// default to http
 	protocol := "http"
 
@@ -37,12 +38,12 @@ func findHttpProtocol(svc *api.Service, hostName string) string {
 	return protocol
 }
 
-func addServiceAnnotation(svc *api.Service, hostName string) (*api.Service, error) {
+func addServiceAnnotation(svc *corev1.Service, hostName string) (*corev1.Service, error) {
 	protocol := findHttpProtocol(svc, hostName)
 	return addServiceAnnotationWithProtocol(svc, hostName, protocol)
 }
 
-func addServiceAnnotationWithProtocol(svc *api.Service, hostName string, protocol string) (*api.Service, error) {
+func addServiceAnnotationWithProtocol(svc *corev1.Service, hostName string, protocol string) (*corev1.Service, error) {
 	if svc.Annotations == nil {
 		svc.Annotations = map[string]string{}
 	}
@@ -66,7 +67,7 @@ func urlJoin(repo string, path string) string {
 	return strings.TrimSuffix(repo, "/") + "/" + strings.TrimPrefix(path, "/")
 }
 
-func removeServiceAnnotation(svc *api.Service) *api.Service {
+func removeServiceAnnotation(svc *corev1.Service) *corev1.Service {
 	delete(svc.Annotations, ExposeAnnotationKey)
 	if key := svc.Annotations[ExposeHostNameAsAnnotationKey]; len(key) > 0 {
 		delete(svc.Annotations, key)
@@ -105,17 +106,18 @@ func createPatch(a runtime.Object, b runtime.Object, encoder runtime.Encoder, da
 type masterType string
 
 const (
-	openShift  masterType = "OpenShift"
-	kubernetes masterType = "Kubernetes"
+	openShift masterType = "OpenShift"
+	k8s       masterType = "Kubernetes"
 )
 
-func typeOfMaster(c *client.Client) (masterType, error) {
-	res, err := c.Get().AbsPath("").DoRaw()
+func typeOfMaster(c *kubernetes.Clientset) (masterType, error) {
+	url := url.URL{}
+	res, err := c.Discovery().RESTClient().Get().AbsPath(url.String()).DoRaw(context.TODO())
 	if err != nil {
 		errors.Wrap(err, "could not discover the type of your installation")
 	}
 
-	var rp unversioned.RootPaths
+	var rp metav1.RootPaths
 	err = json.Unmarshal(res, &rp)
 	if err != nil {
 		errors.Wrap(err, "could not discover the type of your installation")
@@ -125,7 +127,7 @@ func typeOfMaster(c *client.Client) (masterType, error) {
 			return openShift, nil
 		}
 	}
-	return kubernetes, nil
+	return k8s, nil
 }
 
 type urlTemplateParts struct {

@@ -2,16 +2,19 @@ package exposestrategy
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
 
-	"github.com/golang/glog"
 	"github.com/pkg/errors"
-	"gopkg.in/v2/yaml"
-	"k8s.io/kubernetes/pkg/api"
-	client "k8s.io/kubernetes/pkg/client/unversioned"
-	"k8s.io/kubernetes/pkg/runtime"
+	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v2"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 )
 
 // const (
@@ -19,7 +22,7 @@ import (
 // )
 
 type AmbassadorStrategy struct {
-	client  *client.Client
+	client  *kubernetes.Clientset
 	encoder runtime.Encoder
 
 	domain        string
@@ -32,8 +35,8 @@ type AmbassadorStrategy struct {
 
 var _ ExposeStrategy = &AmbassadorStrategy{}
 
-func NewAmbassadorStrategy(client *client.Client, encoder runtime.Encoder, domain string, http, tlsAcme bool, tlsSecretName, urltemplate, pathMode string) (*AmbassadorStrategy, error) {
-	glog.Infof("NewAmbassadorStrategy 1 %v", http)
+func NewAmbassadorStrategy(client *kubernetes.Clientset, encoder runtime.Encoder, domain string, http, tlsAcme bool, tlsSecretName, urltemplate, pathMode string) (*AmbassadorStrategy, error) {
+	log.Infof("NewAmbassadorStrategy 1 %v", http)
 	t, err := typeOfMaster(client)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create new ingress strategy")
@@ -48,14 +51,14 @@ func NewAmbassadorStrategy(client *client.Client, encoder runtime.Encoder, domai
 			return nil, errors.Wrap(err, "failed to get a domain")
 		}
 	}
-	glog.Infof("Using domain: %s", domain)
+	log.Infof("Using domain: %s", domain)
 
 	var urlformat string
 	urlformat, err = getURLFormat(urltemplate)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get a url format")
 	}
-	glog.Infof("Using url template [%s] format [%s]", urltemplate, urlformat)
+	log.Infof("Using url template [%s] format [%s]", urltemplate, urlformat)
 
 	return &AmbassadorStrategy{
 		client:        client,
@@ -69,7 +72,7 @@ func NewAmbassadorStrategy(client *client.Client, encoder runtime.Encoder, domai
 	}, nil
 }
 
-func (s *AmbassadorStrategy) Add(svc *api.Service) error {
+func (s *AmbassadorStrategy) Add(svc *corev1.Service) error {
 	appName := svc.Annotations["fabric8.io/ingress.name"]
 	if appName == "" {
 		if svc.Labels["release"] != "" {
@@ -113,12 +116,12 @@ func (s *AmbassadorStrategy) Add(svc *api.Service) error {
 				}
 			}
 			if !found {
-				glog.Warningf("Port '%s' provided in the annotation '%s' is not available in the ports of service '%s'",
+				log.Warningf("Port '%s' provided in the annotation '%s' is not available in the ports of service '%s'",
 					exposePort, ExposePortAnnotationKey, svc.GetName())
 				exposePort = ""
 			}
 		} else {
-			glog.Warningf("Port '%s' provided in the annotation '%s' is not a valid number",
+			log.Warningf("Port '%s' provided in the annotation '%s' is not a valid number",
 				exposePort, ExposePortAnnotationKey)
 			exposePort = ""
 		}
@@ -133,7 +136,7 @@ func (s *AmbassadorStrategy) Add(svc *api.Service) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to convert the exposed port '%s' to int", exposePort)
 	}
-	glog.Infof("Exposing Port %d of Service %s", servicePort, svc.Name)
+	log.Infof("Exposing Port %d of Service %s", servicePort, svc.Name)
 
 	// Here's where we start adding the annotations to our service
 	ambassadorAnnotations := map[string]interface{}{
@@ -177,24 +180,24 @@ func (s *AmbassadorStrategy) Add(svc *api.Service) error {
 
 	svc.Annotations["getambassador.io/config"] = joinedAnnotations.String()
 
-	_, err = s.client.Services(svc.Namespace).Update(svc)
+	_, err = s.client.CoreV1().Services(svc.Namespace).Update(context.TODO(), svc, metav1.UpdateOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "failed to patch the service %s/%s", svc.Namespace, appName)
 	}
 	return nil
 }
 
-func (s *AmbassadorStrategy) Remove(svc *api.Service) error {
+func (s *AmbassadorStrategy) Remove(svc *corev1.Service) error {
 	delete(svc.Annotations, "getambassador.io/config")
 
-	_, err := s.client.Services(svc.Namespace).Update(svc)
+	_, err := s.client.CoreV1().Services(svc.Namespace).Update(context.TODO(), svc, metav1.UpdateOptions{})
 	if err != nil {
 		return errors.Wrapf(err, "failed to patch the service %s/%s", svc.Namespace, svc.GetName())
 	}
 	return nil
 }
 
-func (s *AmbassadorStrategy) isTLSEnabled(svc *api.Service) bool {
+func (s *AmbassadorStrategy) isTLSEnabled(svc *corev1.Service) bool {
 	if svc != nil && svc.Annotations["jenkins-x.io/skip.tls"] == "true" {
 		return false
 	}

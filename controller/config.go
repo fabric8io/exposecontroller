@@ -7,7 +7,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/pkg/errors"
-	"gopkg.in/v2/yaml"
+	"gopkg.in/yaml.v2"
 )
 
 func LoadFile(path string) (*Config, bool, error) {

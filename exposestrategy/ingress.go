@@ -1,20 +1,23 @@
 package exposestrategy
 
 import (
+	"context"
 	"fmt"
-	"reflect"
 	"strconv"
 	"strings"
 
-	"github.com/golang/glog"
 	"github.com/pkg/errors"
-	"k8s.io/kubernetes/pkg/api"
-	apierrors "k8s.io/kubernetes/pkg/api/errors"
-	v1 "k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/apis/extensions"
-	client "k8s.io/kubernetes/pkg/client/unversioned"
-	"k8s.io/kubernetes/pkg/runtime"
-	"k8s.io/kubernetes/pkg/util/intstr"
+	log "github.com/sirupsen/logrus"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+
+	corev1 "k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	types "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -22,7 +25,7 @@ const (
 )
 
 type IngressStrategy struct {
-	client  *client.Client
+	client  *kubernetes.Clientset
 	encoder runtime.Encoder
 
 	domain         string
@@ -38,8 +41,8 @@ type IngressStrategy struct {
 
 var _ ExposeStrategy = &IngressStrategy{}
 
-func NewIngressStrategy(client *client.Client, encoder runtime.Encoder, domain string, internalDomain string, http, tlsAcme bool, tlsSecretName string, tlsUseWildcard bool, urltemplate, pathMode string, ingressClass string) (*IngressStrategy, error) {
-	glog.Infof("NewIngressStrategy 1 %v", http)
+func NewIngressStrategy(client *kubernetes.Clientset, encoder runtime.Encoder, domain string, internalDomain string, http, tlsAcme bool, tlsSecretName string, tlsUseWildcard bool, urltemplate, pathMode string, ingressClass string) (*IngressStrategy, error) {
+	log.Infof("NewIngressStrategy 1 %v", http)
 	t, err := typeOfMaster(client)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create new ingress strategy")
@@ -54,14 +57,14 @@ func NewIngressStrategy(client *client.Client, encoder runtime.Encoder, domain s
 			return nil, errors.Wrap(err, "failed to get a domain")
 		}
 	}
-	glog.Infof("Using domain: %s", domain)
+	log.Infof("Using domain: %s", domain)
 
 	var urlformat string
 	urlformat, err = getURLFormat(urltemplate)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get a url format")
 	}
-	glog.Infof("Using url template [%s] format [%s]", urltemplate, urlformat)
+	log.Infof("Using url template [%s] format [%s]", urltemplate, urlformat)
 
 	return &IngressStrategy{
 		client:         client,
@@ -78,7 +81,7 @@ func NewIngressStrategy(client *client.Client, encoder runtime.Encoder, domain s
 	}, nil
 }
 
-func (s *IngressStrategy) Add(svc *api.Service) error {
+func (s *IngressStrategy) Add(svc *corev1.Service) error {
 	appName := svc.Annotations["fabric8.io/ingress.name"]
 	if appName == "" {
 		if svc.Labels["release"] != "" {
@@ -119,13 +122,13 @@ func (s *IngressStrategy) Add(svc *api.Service) error {
 		fullHostName = UrlJoin(hostName, path)
 	}
 
-	ingress, err := s.client.Ingress(svc.Namespace).Get(appName)
+	ingress, err := s.client.ExtensionsV1beta1().Ingresses(svc.Namespace).Get(context.TODO(), appName, metav1.GetOptions{})
 	createIngress := false
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			createIngress = true
 			ingress = &extensions.Ingress{
-				ObjectMeta: api.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Namespace: svc.Namespace,
 					Name:      appName,
 				},
@@ -153,7 +156,7 @@ func (s *IngressStrategy) Add(svc *api.Service) error {
 		}
 	}
 	if !hasOwner {
-		ingress.OwnerReferences = append(ingress.OwnerReferences, api.OwnerReference{
+		ingress.OwnerReferences = append(ingress.OwnerReferences, metav1.OwnerReference{
 			APIVersion: "v1",
 			Kind:       "Service",
 			Name:       svc.Name,
@@ -199,7 +202,7 @@ func (s *IngressStrategy) Add(svc *api.Service) error {
 		}
 	}
 
-	glog.Infof("Processing Ingress for Service %s with http: %v path mode: %s and path: %s", svc.Name, s.http, pathMode, path)
+	log.Infof("Processing Ingress for Service %s with http: %v path mode: %s and path: %s", svc.Name, s.http, pathMode, path)
 
 	backendPaths := []extensions.HTTPIngressPath{}
 	if ingress.Spec.Rules != nil {
@@ -225,12 +228,12 @@ func (s *IngressStrategy) Add(svc *api.Service) error {
 				}
 			}
 			if !found {
-				glog.Warningf("Port '%s' provided in the annotation '%s' is not available in the ports of service '%s'",
+				log.Warningf("Port '%s' provided in the annotation '%s' is not available in the ports of service '%s'",
 					exposePort, ExposePortAnnotationKey, svc.GetName())
 				exposePort = ""
 			}
 		} else {
-			glog.Warningf("Port '%s' provided in the annotation '%s' is not a valid number",
+			log.Warningf("Port '%s' provided in the annotation '%s' is not a valid number",
 				exposePort, ExposePortAnnotationKey)
 			exposePort = ""
 		}
@@ -245,7 +248,7 @@ func (s *IngressStrategy) Add(svc *api.Service) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to convert the exposed port '%s' to int", exposePort)
 	}
-	glog.Infof("Exposing Port %d of Service %s", servicePort, svc.Name)
+	log.Infof("Exposing Port %d of Service %s", servicePort, svc.Name)
 
 	ingressPaths := []extensions.HTTPIngressPath{}
 	ingressPath := extensions.HTTPIngressPath{
@@ -279,25 +282,20 @@ func (s *IngressStrategy) Add(svc *api.Service) error {
 	}
 
 	if createIngress {
-		_, err := s.client.Ingress(ingress.Namespace).Create(ingress)
+		_, err := s.client.ExtensionsV1beta1().Ingresses(ingress.Namespace).Create(context.TODO(), ingress, metav1.CreateOptions{})
 		if err != nil {
 			return errors.Wrapf(err, "failed to create ingress %s/%s", ingress.Namespace, ingress.Name)
 		}
+		log.Infof("ingress for service %s created", svc.Name)
 	} else {
-		_, err := s.client.Ingress(svc.Namespace).Update(ingress)
+		_, err := s.client.ExtensionsV1beta1().Ingresses(svc.Namespace).Update(context.TODO(), ingress, metav1.UpdateOptions{})
 		if err != nil {
 			return errors.Wrapf(err, "failed to update ingress %s/%s", ingress.Namespace, ingress.Name)
 		}
+		log.Infof("ingress for service %s updated", svc.Name)
 	}
 
-	cloned, err := api.Scheme.DeepCopy(svc)
-	if err != nil {
-		return errors.Wrap(err, "failed to clone service")
-	}
-	clone, ok := cloned.(*api.Service)
-	if !ok {
-		return errors.Errorf("cloned to wrong type: %s", reflect.TypeOf(cloned))
-	}
+	clone := svc.DeepCopy()
 
 	if s.isTLSEnabled(svc) {
 		clone, err = addServiceAnnotationWithProtocol(clone, fullHostName, "https")
@@ -308,16 +306,12 @@ func (s *IngressStrategy) Add(svc *api.Service) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to add service annotation")
 	}
-	patch, err := createPatch(svc, clone, s.encoder, v1.Service{})
+	patch, err := createPatch(svc, clone, s.encoder, corev1.Service{})
 	if err != nil {
 		return errors.Wrap(err, "failed to create patch")
 	}
 	if patch != nil {
-		err = s.client.Patch(api.StrategicMergePatchType).
-			Resource("services").
-			Namespace(svc.Namespace).
-			Name(svc.Name).
-			Body(patch).Do().Error()
+		_, err = s.client.CoreV1().Services(svc.Namespace).Patch(context.TODO(), svc.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
 		if err != nil {
 			return errors.Wrap(err, "failed to send patch")
 		}
@@ -326,39 +320,28 @@ func (s *IngressStrategy) Add(svc *api.Service) error {
 	return nil
 }
 
-func (s *IngressStrategy) Remove(svc *api.Service) error {
+func (s *IngressStrategy) Remove(svc *corev1.Service) error {
 	var appName string
 	if svc.Labels["release"] != "" {
 		appName = strings.Replace(svc.Name, svc.Labels["release"]+"-", "", 1)
 	} else {
 		appName = svc.Name
 	}
-	err := s.client.Ingress(svc.Namespace).Delete(appName, nil)
+	err := s.client.ExtensionsV1beta1().Ingresses(svc.Namespace).Delete(context.TODO(), appName, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return errors.Wrap(err, "failed to delete ingress")
 	}
 
-	cloned, err := api.Scheme.DeepCopy(svc)
-	if err != nil {
-		return errors.Wrap(err, "failed to clone service")
-	}
-	clone, ok := cloned.(*api.Service)
-	if !ok {
-		return errors.Errorf("cloned to wrong type: %s", reflect.TypeOf(cloned))
-	}
+	clone := svc.DeepCopy()
 
 	clone = removeServiceAnnotation(clone)
 
-	patch, err := createPatch(svc, clone, s.encoder, v1.Service{})
+	patch, err := createPatch(svc, clone, s.encoder, corev1.Service{})
 	if err != nil {
 		return errors.Wrap(err, "failed to create patch")
 	}
 	if patch != nil {
-		err = s.client.Patch(api.StrategicMergePatchType).
-			Resource("services").
-			Namespace(clone.Namespace).
-			Name(clone.Name).
-			Body(patch).Do().Error()
+		_, err = s.client.CoreV1().Services(svc.Namespace).Patch(context.TODO(), svc.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
 		if err != nil {
 			return errors.Wrap(err, "failed to send patch")
 		}
@@ -367,7 +350,7 @@ func (s *IngressStrategy) Remove(svc *api.Service) error {
 	return nil
 }
 
-func (s *IngressStrategy) isTLSEnabled(svc *api.Service) bool {
+func (s *IngressStrategy) isTLSEnabled(svc *corev1.Service) bool {
 	if svc != nil && svc.Annotations["jenkins-x.io/skip.tls"] == "true" {
 		return false
 	}
